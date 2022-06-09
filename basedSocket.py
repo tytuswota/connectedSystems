@@ -2,9 +2,12 @@ import socket
 import json
 from _thread import *
 import os
+import websockets
+import asyncio
 
 HOST = "95.217.181.53"
 PORT = 65432
+WEBSOCKETPORT = 8000
 
 obstacles = []
 
@@ -86,4 +89,18 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         clients.append(conn)
         start_new_thread(multi_threaded_client, (conn, ))
 
-            
+messages = {}
+
+# async  def  handle_ws(websocket , uri):
+#     print("Connection  accepted  from")
+#     while  True:
+#         try:
+#             data = await websocket.recv()
+#         except:
+#             print("Connection lost")
+
+
+
+# ws = websockets.serve(handle_ws , HOST , WEBSOCKETPORT)
+# asyncio.get_event_loop ().run_until_complete(ws)
+# asyncio.get_event_loop ().run_forever ()

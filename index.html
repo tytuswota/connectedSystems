@@ -1,0 +1,48 @@
+<script >
+    let ws = new WebSocket("ws://95.217.181.53:8000");
+
+    function get_data() {
+        ws.send("request_messages");
+    }
+
+    ws.onmessage = function(message) {
+        let data = JSON.parse(message.data);
+    }
+
+    setInterval(get_data, 1000);
+</script>
+
+<canvas  id="theCanvas" width="240" height="240" style="background-color: darkblue">
+</canvas>
+
+<script>
+    CanvasRenderingContext2D.prototype.clear = function () {
+        this.clearRect (0, 0, this.canvas.width , this.canvas.height);
+    };
+
+    CanvasRenderingContext2D.prototype.drawBlock = function(x, y) {
+        this.fillRect (20 * x, 20 * y, 20, 20);
+    }
+
+    let  context = document.getElementById("theCanvas").getContext("2d");
+
+    function  draw() {
+        context.clear();
+        context.fillStyle = "red";
+        context.drawBlock(3, 5); 
+    }
+</script>
+<div id="myDiv" style="background-color: darkgray" ></div >
+<input  type="text" id="myInput" size="6">
+<button  onclick="do_something ()">Knop </button >
+
+<script >
+    document.getElementById("myDiv").innerHTML = "Deze  tekst  verschijnt  op de  plaats  vande &lt;div&gt;.";
+</script>
+<script>
+    function  do_something () {
+        let  value = document.getElementById("myInput").value;
+        ws.send("The  value  was: " + value);
+    }
+</script>
+
