@@ -33,16 +33,25 @@
     }
 </script>
 <div id="myDiv" style="background-color: darkgray" ></div >
-<input  type="text" id="myInput" size="6">
-<button  onclick="do_something ()">Knop </button >
+<input placeholder="bot_id" type="text" id="bot_id" size="6">
+<input placeholder="x_dest" type="text" id="x_dest" size="6">
+<input placeholder="y_dest" type="text" id="y_dest" size="6">
+<button  onclick="do_something ()">Send </button ><br>
 
 <script >
     document.getElementById("myDiv").innerHTML = "Deze  tekst  verschijnt  op de  plaats  vande &lt;div&gt;.";
 </script>
 <script>
     function  do_something () {
-        let  value = document.getElementById("myInput").value;
-        ws.send("The  value  was: " + value);
+        let  bot_id = document.getElementById("bot_id").value;
+        let  x_dest = document.getElementById("x_dest").value;
+        let  y_dest = document.getElementById("y_dest").value;
+        let stringForJson = '{"bot_id": '+ bot_id + ',' + 
+        '"x_dest": ' + x_dest + 
+        ',"y_dest": ' + y_dest + '}';
+
+        //ws.send(JSON.parse(stringForJson));
+        ws.send(stringForJson);
     }
 </script>
 
