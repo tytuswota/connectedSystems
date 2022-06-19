@@ -93,6 +93,14 @@ def parseMsg(msg):
         pass
 
 
+ds0 = robot.getDevice("ds0")
+ds1 = robot.getDevice("ds1")
+ds2 = robot.getDevice("ds2")
+ds3 = robot.getDevice("ds3")
+ds0.enable(timestep)
+ds1.enable(timestep)
+ds2.enable(timestep)
+ds3.enable(timestep)
 
 
 def moveToDest(pos):
@@ -105,7 +113,7 @@ def moveToDest(pos):
     targetVec = target.getSFVec2f()
     tarX = int(targetVec [0])
     tarY = int(targetVec [1])
-
+    
     # xDest = destination.get("x")
     # yDest = destination.get("y")
     
@@ -162,10 +170,22 @@ while robot.step(timestep) != -1:
     posX = round (10 * pos [0]) # times  10  because  grid  size is 0.1 x 0.1 m
     posY = round (10 * pos [1])
     currentPosition = (posX, posY)
-
+    
     #server communication
     # create message and send it
     createMsg(locationMsg, currentPosition)
+    
+    if int(robot.getName()) == 2:
+        print("ds0:", ds0.getValue()) #X
+        print("ds1:", ds1.getValue()) #Y
+        print("ds2:", ds2.getValue()) #-X
+        print("ds3:", ds3.getValue()) #-Y
+    
+    obstacleLocation = ((posX + ds0.getValue()), (posY + ds1.getValue()))
+    createMsg(obstacleMsg, obstacleLocation)
+    obstacleLocation = ((posX - ds2.getValue()), (posY - ds3.getValue()))
+    createMsg(obstacleMsg, obstacleLocation)
+    
     sendAllMsg()
 
     # receive message from the server
