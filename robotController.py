@@ -1,24 +1,35 @@
+"""my_controller controller."""
+
+# You may need to import some classes of the controller module. Ex:
+#  from controller import Robot, Motor, DistanceSensor
 from  controller  import  Supervisor
 import time
 import socket
 import json
+import random
 
 HOST = "95.217.181.53"
-PORT = 65432 
+PORT = 65433 
 
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.connect((HOST, PORT))
+# create the Robot instance
+robot = Supervisor()
+supervisorNode = robot . getSelf ()
+
+# get the time step of the current world.
+timestep = int(robot.getBasicTimeStep())
+
+# calculate a multiple of timestep close to one second
+duration = (1000 // timestep ) * timestep
 
 
-robot = Supervisor ()
-supervisorNode = robot.getSelf ()
-timestep = int(robot.getBasicTimeStep ())
-duration = (1000  //  timestep) * timestep
+distanceSensors = []
+
+
 
 id = int(robot.getName())
-
 txMsgBuff = []
 
+#These are identifiers for the type of message
 locationMsg = 1
 obstacleMsg = 2
 
@@ -27,15 +38,15 @@ destination = {
     "y": 0
     }
 
-def sendAllMsg():
-    for i in range(len(txMsgBuff)):
-        msg = txMsgBuff.pop()
-        try:
-            s.sendall(bytes(msg, encoding="utf-8"))
-        except:
-            print('Error sending message')
-            txMsgBuff.append(msg)
-        
+
+s = socket.socket ()
+
+try:
+    s.connect ((HOST , PORT))
+except:
+    print ("Connection refused")
+    exit ()
+
 def createMsg(type, pos):
     msg = {
         "messageId": type,
@@ -45,16 +56,31 @@ def createMsg(type, pos):
         }
     txMsgBuff.append(json.dumps(msg))
 
+def sendAllMsg():
+    for i in range(len(txMsgBuff)):
+        msg = txMsgBuff.pop()
+        try:
+            s.sendall(bytes(msg, encoding="utf-8"))
+        except:
+            print('Error sending message')
+            txMsgBuff.append(msg)
+
 def receiveMsg():
     return s.recv(1024).decode()
 
 def setDestination(dest):
     x = dest["x"]
     y = dest["y"]
-    destination.update({"x":x})
-    destination.update({"y":y})
+    # destination.update({"x":x})
+    # destination.update({"y":y})
+    print("in dest func:", x)
+    print("in dest func:", y)
+    supervisorNode.getField("target").setSFVec2f([x,y])
+    
+
 
 def parseMsg(msg):
+    print("in parse message")
     try:
         unitID = msg["unitID"]
         if unitID == id:
@@ -66,47 +92,92 @@ def parseMsg(msg):
     except:
         pass
 
+
+
+
 def moveToDest(pos):
-    xPos = pos[0] * 10
-    yPos = pos[1] * 10
+   
+    posX = round(10 * pos [0]) # times 10 because grid size is 0.1 x 0.1 m
+    posY = round(10 * pos [1])
     
-    xDest = destination.get("x")
-    yDest = destination.get("y")
+    #Here we take get the target field from the proto
+    target = supervisorNode.getField("target")
+    targetVec = target.getSFVec2f()
+    tarX = int(targetVec [0])
+    tarY = int(targetVec [1])
+
+    # xDest = destination.get("x")
+    # yDest = destination.get("y")
+    
+    xDest = tarX
+    yDest = tarY
     trans = supervisorNode.getField("translation")
-    
-    # print(destination)
     
     xMov = 0
     yMov = 0
-    if xPos < xDest:
+    if posX < xDest:
         xMov = +.1
-    elif xPos > xDest:
+        resetLED()
+        led2.set(1)
+    if posX > xDest:
         xMov = -.1
-    
-    if yPos < yDest:
+        resetLED()
+        led3.set(1)
+    if posY < yDest:
         yMov = +.1
-    elif yPos > yDest:
+        resetLED()
+        led0.set(1)
+    if posY > yDest:
         yMov = -.1
+        resetLED()
+        led1.set(1)
     
     trans.setSFVec3f([pos[0]+xMov, pos[1]+yMov, pos[2]])
+    
 
-#execute  every  second
-while  robot.step(duration) !=  -1: 
-    # get  position
+
+# LED setup
+led0 = robot.getDevice("led0")
+led1 = robot.getDevice("led1")
+led2 = robot.getDevice("led2")
+led3 = robot.getDevice("led3")
+
+def resetLED():
+  global led0, led1, led2, led3
+  led0.set(0)
+  led1.set(0)
+  led2.set(0)
+  led3.set(0)
+  
+  
+    
+# for i in range(random.randint(0, 1000//timestep)):
+    # robot.step(timestep)
+
+while robot.step(timestep) != -1:
+
+# get position
     pos = supervisorNode.getPosition()
+
     posX = round (10 * pos [0]) # times  10  because  grid  size is 0.1 x 0.1 m
     posY = round (10 * pos [1])
     currentPosition = (posX, posY)
-    
-    # server communication
+
+    #server communication
+    # create message and send it
     createMsg(locationMsg, currentPosition)
     sendAllMsg()
-    answer = json.loads(receiveMsg())
-    parseMsg(answer)
-    print(f"Received {answer!r}")
+
+    # receive message from the server
+    messageFromServer = receiveMsg()
     
-    # get handle to translation field & set pos(x, y, z)
+    try:
+        serverMessage = json.loads(messageFromServer)
+        parseMsg(serverMessage)
+        print(f"Received {serverMessage!r}")
+    except ValueError:
+        pass
     
     moveToDest(pos)
-    
+        
     time.sleep(2)

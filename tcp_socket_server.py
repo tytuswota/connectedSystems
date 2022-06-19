@@ -6,7 +6,7 @@ import websockets
 import asyncio
 
 HOST = "95.217.181.53"
-PORT = 65432
+PORT = 65433
 WEBSOCKETPORT = 8000
 
 obstacles = []
@@ -64,18 +64,18 @@ def multi_threaded_client(conn):
                 coords = message["coords"]
                 unitID = message["unitID"]
                 messageForBot = {"messageId":4, "unitID":unitID, "coords":coords}
-
+                print("hij zit in messageID 4 ding")
                 try:
                     for c in clients:
-                        c.sendall(bytes(json.dumps(messageForBot), encoding="utf-8"))
+                        c.sendall(bytes((json.dumps(messageForBot)), encoding="utf-8"))
                 except ValueError:
                     pass
             else:
                 print("unknown message id")
-        except ValueError:
+        except ValueError:    
             clients.pop(0)
             pass
-        conn.sendall(data)
+        conn.sendall(bytes(" ", encoding="utf-8"))
   
     clients.pop(0)
     conn.close()
