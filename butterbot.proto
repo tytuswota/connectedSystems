@@ -1,0 +1,191 @@
+#VRML_SIM R2022a utf8
+PROTO butterbot [
+  field SFString name "2"
+  field SFString controller "my_controller"
+  field SFColor color 1 0 0
+  field SFVec3f translation 0 0.0 0.05
+  field SFVec2f target 5 5
+  field MFVec3f lookupTable [
+		0 1 0,
+		0.1 0 0
+	]
+]
+{
+  Robot {
+    translation IS translation
+    name IS name
+    children [
+      DEF robot_shape Shape {
+        appearance Appearance {
+          material Material {
+            diffuseColor IS color
+            shininess 0
+          }
+        }
+        geometry Box {
+          size 0.1 0.1 0.1
+        }
+      }
+      Solid {
+      }
+
+      LED { 
+        translation 0 0.03 0.05
+		    name "led0"
+        color [0 1 0]
+        children [
+          Shape {
+            geometry Sphere {
+                radius 0.01
+            }
+            appearance Appearance {
+              material Material { 
+                diffuseColor 0.5 0.5 0.5
+              }
+            }
+          }
+        ]
+      }
+
+      LED { 
+        translation 0 -0.03 0.05
+		    name "led1"
+        color [0 1 0]
+        children [
+          Shape {
+            geometry Sphere {
+                radius 0.01
+            }
+            appearance Appearance {
+              material Material { 
+                diffuseColor 0.5 0.5 0.5
+              }
+            }
+          }
+        ]
+      }
+
+      LED { 
+        translation 0.03 0 0.05
+		    name "led2"
+        color [0 1 0]
+        children [
+          Shape {
+            geometry Sphere {
+                radius 0.01
+            }
+            appearance Appearance {
+              material Material { 
+                diffuseColor 0.5 0.5 0.5
+              }
+            }
+          }
+        ]
+      }
+
+      LED { 
+        translation -0.03 0 0.05
+		    name "led3"
+        color [0 1 0]
+        children [
+          Shape {
+            geometry Sphere {
+                radius 0.01
+            }
+            appearance Appearance {
+              material Material { 
+                diffuseColor 0.5 0.5 0.5
+              }
+            }
+          }
+        ]
+      }
+
+	  	DistanceSensor {
+	  		translation 0.0 0.04 0.0
+	  		rotation 0.587081 0.561928 0.582729 2.12379
+	  		name "ds_up"
+	  		children [
+	  			Shape {
+	  				geometry Sphere {
+	  					radius 0.005
+	  				}
+  
+	  				appearance Appearance {
+	  					material Material {
+	  						diffuseColor 0.2 0.2 0.2
+	  					}
+	  				}
+	  			}
+	  		]
+	  		lookupTable IS lookupTable
+	  	}
+      
+      	  	DistanceSensor {
+	  		translation 0.04 0.0 0.0
+	  		rotation 0 1 0 0
+	  		name "ds_right"
+	  		children [
+	  			Shape {
+	  				geometry Sphere {
+	  					radius 0.005
+	  				}
+  
+	  				appearance Appearance {
+	  					material Material {
+	  						diffuseColor 0.2 0.2 0.2
+	  					}
+	  				}
+	  			}
+	  		]
+	  		lookupTable IS lookupTable
+	  	}
+
+	  	DistanceSensor {
+	  		translation 0 -0.04 0.0
+	  		rotation 0 0 1 -1.5708
+	  		name "ds_down"
+	  		children [
+	  			Shape {
+	  				geometry Sphere {
+	  					radius 0.005
+	  				}
+  
+	  				appearance Appearance {
+	  					material Material {
+	  						diffuseColor 0.2 0.2 0.2
+	  					}
+	  				}
+	  			}
+	  		]
+	  		lookupTable IS lookupTable
+	  	}
+
+	  	DistanceSensor {	
+	  	  translation -0.04 0.0 0.0
+	  		rotation 0 1 0 3.1408
+	  	  name "ds_left"
+	  	  children [
+	  	  	Shape {
+	  	  		geometry Sphere {
+	  	  		  radius 0.005
+	  	  		}
+
+	  				appearance Appearance {
+	    				material Material {
+		  					diffuseColor 0.2 0.2 0.2
+  	  				}
+	  	  		}
+	  	  	}
+	  		]
+	    	lookupTable IS lookupTable
+	    }
+
+    ]
+    boundingObject USE robot_shape
+    controller IS controller
+    supervisor TRUE
+  }
+}
+
+
