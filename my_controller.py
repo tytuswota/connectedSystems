@@ -23,8 +23,7 @@ duration = (1000 // timestep ) * timestep
 
 
 distanceSensors = []
-
-
+obstacles = []
 
 id = int(robot.getName())
 txMsgBuff = []
@@ -48,12 +47,21 @@ except:
     exit ()
 
 def createMsg(type, pos):
-    msg = {
-        "messageId": type,
-        "unitID": int(id),
-        "x": pos[0],
-        "y": pos[1]
-        }
+    if type == locationMsg:
+        msg = {
+            "messageId": type,
+            "unitID": int(id),
+            "x": pos[0],
+            "y": pos[1]
+            }
+    elif type == obstacleMsg:
+        msg = {
+            "messageId": type,
+            "unitID": int(id),
+            "x": pos['x'],
+            "y": pos['y']
+            }
+        
     txMsgBuff.append(json.dumps(msg))
 
 def sendAllMsg():
@@ -77,21 +85,30 @@ def setDestination(dest):
     print("in dest func:", y)
     supervisorNode.getField("target").setSFVec2f([x,y])
 
-
-
+def updateObstacleList(obstacle):
+    # print(obstacle)
+    duplicate = False
+    for j in range(len(obstacles)):
+        if obstacle['x'] == obstacles[j]['x'] and obstacle['y'] == obstacles[j]['y']:
+            duplicate = True
+            break
+    if not duplicate:
+        obstacles.append(obstacle)
+                
 def parseMsg(msg):
-    print("in parse message")
+    # print("in parse message")
     try:
-        unitID = msg["unitID"]
-        if unitID == id:
-            messageID = msg["messageId"]
-            if messageID == 4:
+        messageID = msg["messageId"]
+        if messageID == 0:
+            for i in range(len(msg["list"])):
+                updateObstacleList(msg["list"][i])
+        if messageID == 4:
+            unitID = msg["unitID"]
+            if unitID == id:
                 coords = msg["coords"]
-                print(coords)
                 setDestination(coords)
     except:
         print('Could not parse message')
-
 
 ds_up = robot.getDevice("ds_up")
 ds_right = robot.getDevice("ds_right")
@@ -159,7 +176,7 @@ def resetLED():
 
 
 def locateObstacles(currentPos):
-    obstacles = []
+    obst = []
     up = ds_up.getValue()
     down = ds_down.getValue()
     left = ds_left.getValue()
@@ -168,21 +185,16 @@ def locateObstacles(currentPos):
     target = supervisorNode.getField("target")
     
     if right > 0:
-        obstacles.append((currentPos[0] + 1, currentPos[1]))
-        
-        print('right')
+        obst.append({'x': currentPos[0] + 1, 'y': currentPos[1]})
     if left > 0:
-        obstacles.append((currentPos[0] - 1, currentPos[1]))
-        print('left')
+        obst.append({'x': currentPos[0] - 1, 'y': currentPos[1]})
     if up > 0:
-        obstacles.append((currentPos[0], currentPos[1] + 1))
-        target.setSFVec2f([0,9])
-        print('up')
+        obst.append({'x': currentPos[0], 'y': currentPos[1] + 1})
+        target.setSFVec2f([5,4])
     if down > 0:
-        obstacles.append((currentPos[0], currentPos[1] - 1))
-        print('down')
+        obst.append({'x': currentPos[0], 'y': currentPos[1] - 1})
     
-    return obstacles
+    return obst
 
 
 while robot.step(duration) != -1:
@@ -198,13 +210,12 @@ while robot.step(duration) != -1:
     #server communication
     # create message and send it
     createMsg(locationMsg, currentPosition)
-
-    obstacles = locateObstacles(currentPosition)
-    print(obstacles)
-    # obstacleLocation = ((posX + ds0.getValue()), (posY + ds1.getValue()))
-    # createMsg(obstacleMsg, obstacleLocation)
-    # obstacleLocation = ((posX - ds2.getValue()), (posY - ds3.getValue()))
-    # createMsg(obstacleMsg, obstacleLocation)
+    
+    detectedObstacles = locateObstacles(currentPosition)
+    
+    for i in range(len(detectedObstacles)):
+        createMsg(obstacleMsg, detectedObstacles[i])
+   
 
     sendAllMsg()
 
@@ -218,6 +229,8 @@ while robot.step(duration) != -1:
     except ValueError:
         pass
 
+    print(obstacles)
+    
     moveToDest(pos)
 
     time.sleep(2)
