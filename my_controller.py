@@ -10,7 +10,9 @@ import random
 
 HOST = "95.217.181.53"
 PORT = 65433
-
+mapH = 10
+mapW = 10
+map = [[0 for col in range(mapW)] for row in range(mapH)]
 # create the Robot instance
 robot = Supervisor()
 supervisorNode = robot . getSelf ()
@@ -85,23 +87,17 @@ def setDestination(dest):
     print("in dest func:", y)
     supervisorNode.getField("target").setSFVec2f([x,y])
 
-def updateObstacleList(obstacle):
-    # print(obstacle)
-    duplicate = False
-    for j in range(len(obstacles)):
-        if obstacle['x'] == obstacles[j]['x'] and obstacle['y'] == obstacles[j]['y']:
-            duplicate = True
-            break
-    if not duplicate:
-        obstacles.append(obstacle)
+def updateMap(obstacle):
+    map[obstacle['y']][obstacle['x']] = 1
                 
 def parseMsg(msg):
     # print("in parse message")
+    print("msg->", msg)
     try:
         messageID = msg["messageId"]
         if messageID == 0:
             for i in range(len(msg["list"])):
-                updateObstacleList(msg["list"][i])
+                updateMap(msg["list"][i])
         if messageID == 4:
             unitID = msg["unitID"]
             if unitID == id:
@@ -200,6 +196,7 @@ def locateObstacles(currentPos):
 while robot.step(duration) != -1:
 
 # get position
+    print("map->",map)
     pos = supervisorNode.getPosition()
 
     posX = round (10 * pos [0]) # times  10  because  grid  size is 0.1 x 0.1 m

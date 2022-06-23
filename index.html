@@ -6,7 +6,8 @@
     }
 
     ws.onmessage = function(message) {
-        let data = JSON.parse(message.data);
+        console.log(message)
+        //let data = JSON.parse(message.data);
     }
 
     setInterval(get_data, 1000);
@@ -43,6 +44,7 @@
 </script>
 <script>
     function  do_something () {
+        alert("doing something");
         let  bot_id = document.getElementById("bot_id").value;
         let  x_dest = document.getElementById("x_dest").value;
         let  y_dest = document.getElementById("y_dest").value;
