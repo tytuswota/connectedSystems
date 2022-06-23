@@ -87,5 +87,5 @@ Solid {
   boundingObject USE BOX_SHAPE
 }
 butterbot {
-  target 5 4
+  target 5 9
 }
