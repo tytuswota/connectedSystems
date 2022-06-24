@@ -15,7 +15,8 @@ mapW = 10
 map = [[0 for col in range(mapW)] for row in range(mapH)]
 
 # list of locations of bots
-botLocations = [[]*4]
+botLocations = [[0,0], [0,0], [0,0], [0,0]]
+prevLocations = [[0,0], [0,0], [0,0], [0,0]]
 
 # create the Robot instance
 robot = Supervisor()
@@ -119,19 +120,35 @@ def setDestination(dest):
 def parseMsg(msg):
     try:
         messageID = msg["messageId"]
+        
+        #global messages
         if messageID == 0:  # New obstacles
             for i in range(len(msg["list"])):
-                updateMap(msg["list"][i])
+                coords = msg["list"][i]
+                updateMap(coords['x'], coords['y'])
+            return
+        if messageID == 5: #location of bots:
+            prevLocations = botLocations
+            for i in range(len(msg["list"])):
+                coords = msg["list"][i]
+                botLocations[i][0] = coords['x']
+                botLocations[i][1] = coords['y']
+                updateMap(coords['x'], coords['y'], True)
+            return
+                  
+        unitID = msg["unitID"]
+        
+        #bot specific messages
         if messageID == 4:  # New destination
-            unitID = msg["unitID"]
             if unitID == id:
                 coords = msg["coords"]
                 setDestination(coords)
-        if messageID == 5: #location of bots:
-            global botLocations
-            for i in range(len(msg["list"])):
-                botLocations[i] = msg["list"][i]
-                updateMap(msg["list"][i], True)
+            return
+        if messageID == 7: #noodstop
+            if unitID == id:
+                pos = supervisorNode.getPosition()
+                supervisorNode.getField("target").setSFVec2f([pos[0],pos[1]])
+            return
     except:
         print('Could not parse message')
 
@@ -186,25 +203,34 @@ def targetReachedLed():
   led2.set(1)
   led3.set(1)
   
-def updateObsMap(mapX, mapY, bot = False):
+def updateMap(mapX, mapY, bot = False):
     if not bot:
         if mapX >= mapW or mapX < 0 or mapY >= mapH or mapY < 0:
             return
-        if map[mapX][mapY] == 0:
-            map[mapX][mapY] = 1
+        map[mapX][mapY] = 1
+
     else:
-        global botLocations
         map[mapX][mapY] = 2
-        for row in map:
-            for column in map[row]:
+        for row in range(len(map)):
+            for column in range(len(map[row])):
                 if map[row][column] == 2:
                     found = False
-                    for location in botLocations:
-                        if column == location[0] or row == location[1]:
+                    for location in prevLocations:
+                        if column == location[0] and row == location[1]:
                             found = True
                             break
                     if not found:
                         map[row][column] = 0
+
+def isObstacleBot(pos):
+    try:
+        for locations in botLocations:
+            if pos[0] == locations[0] and pos[1] == locations[1]:
+                return True
+        return False
+    except:
+        return False
+
 
 def locateObstacles(currentPos):
     obst = []
@@ -212,23 +238,27 @@ def locateObstacles(currentPos):
     down = ds_down.getValue()
     left = ds_left.getValue()
     right = ds_right.getValue()
-    
+
     if right > 0:
         if not currentPos[0] >= mapW - 1:
-            obst.append({'x': currentPos[0] + 1, 'y': currentPos[1]})
-            updateObsMap(currentPos[0] + 1, currentPos[1])
+            pos = (currentPos[0] + 1, currentPos[1])
+            obst.append({'x': pos[0], 'y': pos[1]})
+            updateMap(pos[0], pos[1], isObstacleBot(pos))
     if left > 0:
-        if not currentPos[0] <= 0:
-            obst.append({'x': currentPos[0] - 1, 'y': currentPos[1]})
-            updateObsMap(currentPos[0] - 1, currentPos[1])
+        if not currentPos[0] <= 0:            
+            pos = (currentPos[0] - 1, currentPos[1])
+            obst.append({'x': pos[0], 'y': pos[1]})
+            updateMap(pos[0], pos[1], isObstacleBot(pos))
     if up > 0:
         if not currentPos[1] >= mapH - 1:
-            obst.append({'x': currentPos[0], 'y': currentPos[1] + 1})
-            updateObsMap(currentPos[0], currentPos[1] + 1)
+            pos = (currentPos[0], currentPos[1] + 1)
+            obst.append({'x': pos[0], 'y': pos[1]})
+            updateMap(pos[0], pos[1], isObstacleBot(pos))
     if down > 0:
-        if not currentPos[1] <= 0:
-            obst.append({'x': currentPos[0], 'y': currentPos[1] - 1})
-            updateObsMap(currentPos[0], currentPos[1] - 1)
+        if not currentPos[1] <= 0:  
+            pos = (currentPos[0], currentPos[1] - 1)
+            obst.append({'x': pos[0], 'y': pos[1]})
+            updateMap(pos[0], pos[1], isObstacleBot(pos))
     
     return obst
 
@@ -283,11 +313,25 @@ def getNextStep(botMap, target):
             k -= 1
     return (the_path[len(the_path)-2])
 
-
+def printMap():
+    def rotate(array):
+        R, C=len(array), len(array[0])
+        newArr = [[None] * R for _ in range(C)]
+        for c in range(C):
+            for r in range(R-1, -1, -1):
+                newArr[C-c-1][r] = array[r][c]
+        return newArr
+        
+    transposedMap = rotate(map)
+    for row in transposedMap:
+        print(row)
+    print(' ')
+                
+    
 while robot.step(duration) != -1:
     currentPos = getCurrentPos()
     detectedObstacles = locateObstacles(currentPos)
-    
+
     # create message and send it
     createMsg(locationMsg, currentPos)  
     for i in range(len(detectedObstacles)):
@@ -295,9 +339,8 @@ while robot.step(duration) != -1:
     sendAllMsg()
 
     # receive message from the server
-    
-    try:
-        messageFromServer = receiveMsg()
+    messageFromServer = receiveMsg()
+    try:   
         serverMessage = json.loads(messageFromServer)
         parseMsg(serverMessage)
         print(f"Received {serverMessage!r}")
@@ -307,5 +350,6 @@ while robot.step(duration) != -1:
     # move bot one step
     moveToDest(currentPos)
     
-    #
+    printMap()
+    
     time.sleep(0.1)
