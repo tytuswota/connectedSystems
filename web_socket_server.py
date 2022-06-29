@@ -10,6 +10,7 @@ s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.connect((HOST, PORT))
 
 txMsgBuff = []
+messageFromTcpSocket = ""
 
 def sendAllMsg():
     for i in range(len(txMsgBuff)):
@@ -42,7 +43,7 @@ async def echo(websocket):
             sendAllMsg()
         except:
             pass
-        #await websocket.send(message)
+        await websocket.send("hi")
 
 async def main():
     async with websockets.serve(echo, "95.217.181.53", 8000):

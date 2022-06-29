@@ -1,13 +1,44 @@
 <script >
     let ws = new WebSocket("ws://95.217.181.53:8000");
+    let obstacleMap = [...Array(10)].map(x=>Array(10).fill(0));
 
     function get_data() {
         ws.send("request_messages");
     }
 
     ws.onmessage = function(message) {
-        console.log(message)
-        //let data = JSON.parse(message.data);
+        try {
+            // console.log("=============");
+            // console.log(message.data)
+            // console.log("=============");
+            messageArray = message.data.split("|");
+            console.log("the message array->", messageArray)
+            messageArray.forEach(jsonString => {
+                
+                messageObject = JSON.parse(jsonString);
+            
+                if(messageObject.messageId === 0) {
+
+                    let listOfObstakels = messageObject.list;
+                    
+                    listOfObstakels.forEach(list => {
+                        let x = parseInt(list.x);
+                        let y = parseInt(list.y);
+
+                        if(!(x < 0 || y < 0))
+                        {
+                            obstacleMap[y][x] = 1;
+                            drawObstakcle(y,x)
+                        }
+                        
+                        console.log(obstacleMap);
+                    });
+                }    
+            });
+            
+        } catch (error) {
+            console.log(error);
+        }
     }
 
     setInterval(get_data, 1000);
@@ -25,34 +56,74 @@
         this.fillRect (20 * x, 20 * y, 20, 20);
     }
 
-    let  context = document.getElementById("theCanvas").getContext("2d");
-
-    function  draw() {
-        context.clear();
-        context.fillStyle = "red";
-        context.drawBlock(3, 5); 
+    CanvasRenderingContext2D.prototype.clearBlock = function(x, y) {
+        this.clearRect (20 * x, 20 * y, 20, 20);
     }
+
+    let  context = document.getElementById("theCanvas").getContext("2d");
+    
+    function drawObstakcle(x, y) {
+        context.fillStyle = "brown";
+        context.drawBlock(x, y)
+    }
+
+    function  drawUnit1() {
+        //context.clear();
+        context.fillStyle = "red";
+        context.drawBlock(0, 0); 
+    }
+    function  drawUnit2() {
+        //context.clear();
+        context.fillStyle = "#ADD8E6";
+        context.drawBlock(11, 11); 
+    }
+    function  drawUnit3() {
+        //context.clear();
+        context.fillStyle = "yellow";
+        context.drawBlock(0, 11); 
+    }
+    function  drawUnit4() {
+        //context.clear();
+        context.fillStyle = "green";
+        context.drawBlock(11, 0); 
+    }
+
+drawUnit1();
+drawUnit2();
+drawUnit3();
+drawUnit4();
 </script>
 <div id="myDiv" style="background-color: darkgray" ></div >
 <input placeholder="bot_id" type="text" id="bot_id" size="6">
 <input placeholder="x_dest" type="text" id="x_dest" size="6">
 <input placeholder="y_dest" type="text" id="y_dest" size="6">
 <button  onclick="do_something ()">Send </button ><br>
+<button  onclick="do_noodStop ()">NOODSTOP!!!!! </button ><br>
+
 
 <script >
-    document.getElementById("myDiv").innerHTML = "Deze  tekst  verschijnt  op de  plaats  vande &lt;div&gt;.";
+    document.getElementById("myDiv").innerHTML = ".";
 </script>
 <script>
-    function  do_something () {
-        alert("doing something");
+    function  do_something () {        
         let  bot_id = document.getElementById("bot_id").value;
         let  x_dest = document.getElementById("x_dest").value;
         let  y_dest = document.getElementById("y_dest").value;
-        let stringForJson = '{"bot_id": '+ bot_id + ',' + 
-        '"x_dest": ' + x_dest + 
+        let stringForJson = '{"bot_id": '+ bot_id + ','+ 
+         '"message_id":' + 9 + ','
+        +'"x_dest": ' + x_dest + 
         ',"y_dest": ' + y_dest + '}';
 
-        //ws.send(JSON.parse(stringForJson));
+        console.log(stringForJson);
+
+        ws.send(stringForJson);
+    }
+
+    function do_noodStop() {
+        let  bot_id = document.getElementById("bot_id").value;
+        let stringForJson = '{"bot_id": '+ bot_id + ',' + 
+        '"message_id": ' + 6 + '}';
+
         ws.send(stringForJson);
     }
 </script>
