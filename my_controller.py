@@ -8,11 +8,16 @@ import socket
 import json
 import random
 
-HOST = "95.217.181.53"
-PORT = 65433
+
+# Worlmap
 mapH = 10
 mapW = 10
 map = [[0 for col in range(mapW)] for row in range(mapH)]
+
+# list of locations of bots
+botLocations = [[0,0], [0,0], [0,0], [0,0]]
+prevLocations = [[0,0], [0,0], [0,0], [0,0]]
+
 # create the Robot instance
 robot = Supervisor()
 supervisorNode = robot . getSelf ()
@@ -23,31 +28,45 @@ timestep = int(robot.getBasicTimeStep())
 # calculate a multiple of timestep close to one second
 duration = (1000 // timestep ) * timestep
 
+# 
+id = int(robot.getName())
 
 distanceSensors = []
-obstacles = []
-
-id = int(robot.getName())
 txMsgBuff = []
 
 #These are identifiers for the type of message
 locationMsg = 1
 obstacleMsg = 2
 
-destination = {
-    "x": 0,
-    "y": 0
-    }
+# sensor setup
+ds_up = robot.getDevice("ds_up")
+ds_right = robot.getDevice("ds_right")
+ds_down = robot.getDevice("ds_down")
+ds_left = robot.getDevice("ds_left")
 
+ds_up.enable(timestep)
+ds_right.enable(timestep)
+ds_down.enable(timestep)
+ds_left.enable(timestep)
 
+# LED setup
+led0 = robot.getDevice("led0")
+led1 = robot.getDevice("led1")
+led2 = robot.getDevice("led2")
+led3 = robot.getDevice("led3")
+
+# Socket
+HOST = "95.217.181.53"
+PORT = 65433
 s = socket.socket ()
-
 try:
     s.connect ((HOST , PORT))
 except:
     print ("Connection refused")
     exit ()
 
+
+# messages 
 def createMsg(type, pos):
     if type == locationMsg:
         msg = {
@@ -78,90 +97,98 @@ def sendAllMsg():
 def receiveMsg():
     return s.recv(1024).decode()
 
+def getCurrentPos():
+    pos = supervisorNode.getPosition()
+    posX = round (10 * pos [0]) # times  10  because  grid  size is 0.1 x 0.1 m
+    posY = round (10 * pos [1])
+    return ((posX, posY))
+    
+def getTarget():
+    target = supervisorNode.getField("target")
+    targetVec = target.getSFVec2f()
+    xDest = int(targetVec [0])
+    yDest = int(targetVec [1])
+    return ((xDest,yDest))
+
+
 def setDestination(dest):
     x = dest["x"]
     y = dest["y"]
-    # destination.update({"x":x})
-    # destination.update({"y":y})
-    print("in dest func:", x)
-    print("in dest func:", y)
     supervisorNode.getField("target").setSFVec2f([x,y])
 
-def updateMap(obstacle):
-    map[obstacle['y']][obstacle['x']] = 1
-                
+
 def parseMsg(msg):
-    # print("in parse message")
-    print("msg->", msg)
     try:
         messageID = msg["messageId"]
-        if messageID == 0:
+        
+        #global messages
+        if messageID == 0:  # New obstacles
             for i in range(len(msg["list"])):
-                updateMap(msg["list"][i])
-        if messageID == 4:
-            unitID = msg["unitID"]
+                coords = msg["list"][i]
+                updateMap(coords['x'], coords['y'])
+            return
+        if messageID == 5: #location of bots:
+            prevLocations = botLocations
+            for i in range(len(msg["list"])):
+                coords = msg["list"][i]
+                botLocations[i][0] = coords['x']
+                botLocations[i][1] = coords['y']
+                updateMap(coords['x'], coords['y'], True)
+            return
+                  
+        unitID = msg["unitID"]
+        
+        #bot specific messages
+        if messageID == 4:  # New destination
             if unitID == id:
                 coords = msg["coords"]
                 setDestination(coords)
+            return
+        if messageID == 7: #noodstop
+            if unitID == id:
+                pos = supervisorNode.getPosition()
+                supervisorNode.getField("target").setSFVec2f([pos[0],pos[1]])
+            return
     except:
         print('Could not parse message')
 
-ds_up = robot.getDevice("ds_up")
-ds_right = robot.getDevice("ds_right")
-ds_down = robot.getDevice("ds_down")
-ds_left = robot.getDevice("ds_left")
-ds_up.enable(timestep)
-ds_right.enable(timestep)
-ds_down.enable(timestep)
-ds_left.enable(timestep)
 
 
 def moveToDest(pos):
+    global led0, led1, led2, led3, map
 
-    posX = round(10 * pos [0]) # times 10 because grid size is 0.1 x 0.1 m
-    posY = round(10 * pos [1])
+    # Here we get the target field and current Position
+    currentPos = getCurrentPos()
+    target = getTarget()
+        
+    if currentPos != target:
+        moveTo = getNextStep(map, target)
 
-    #Here we take get the target field from the proto
-    target = supervisorNode.getField("target")
-    targetVec = target.getSFVec2f()
-    tarX = int(targetVec [0])
-    tarY = int(targetVec [1])
+        if moveTo[1] < currentPos[1]:
+          resetLED()
+          led1.set(1)
+          
+        if moveTo[0] > currentPos[0]:
+          resetLED()
+          led2.set(1)
+          
+        if moveTo[1] > currentPos[1]:
+          resetLED()
+          led0.set(1)
 
-    # xDest = destination.get("x")
-    # yDest = destination.get("y")
+        if moveTo[0] < currentPos[0]:
+          resetLED()
+          led3.set(1)
 
-    xDest = tarX
-    yDest = tarY
-    trans = supervisorNode.getField("translation")
+        # get handle to translation field
+        trans = supervisorNode.getField("translation")
 
-    xMov = 0
-    yMov = 0
-    if posX < xDest:
-        xMov = +.1
-        resetLED()
-        led2.set(1)
-    if posX > xDest:
-        xMov = -.1
-        resetLED()
-        led3.set(1)
-    if posY < yDest:
-        yMov = +.1
-        resetLED()
-        led0.set(1)
-    if posY > yDest:
-        yMov = -.1
-        resetLED()
-        led1.set(1)
-
-    trans.setSFVec3f([pos[0]+xMov, pos[1]+yMov, pos[2]])
+        # set position; pos is a list with 3 elements: x, y and z coordinates
+        trans.setSFVec3f([moveTo[0]/10, moveTo[1]/10, 0.05])
+    elif currentPos[0] == target[0] and currentPos[1] == target[1]:
+        targetReachedLed()
 
 
-
-# LED setup
-led0 = robot.getDevice("led0")
-led1 = robot.getDevice("led1")
-led2 = robot.getDevice("led2")
-led3 = robot.getDevice("led3")
 
 def resetLED():
   global led0, led1, led2, led3
@@ -170,6 +197,40 @@ def resetLED():
   led2.set(0)
   led3.set(0)
 
+def targetReachedLed():
+  led0.set(1)
+  led1.set(1)
+  led2.set(1)
+  led3.set(1)
+  
+def updateMap(mapX, mapY, bot = False):
+    if not bot:
+        if mapX >= mapW or mapX < 0 or mapY >= mapH or mapY < 0:
+            return
+        map[mapX][mapY] = 1
+
+    else:
+        map[mapX][mapY] = 2
+        for row in range(len(map)):
+            for column in range(len(map[row])):
+                if map[row][column] == 2:
+                    found = False
+                    for location in prevLocations:
+                        if column == location[0] and row == location[1]:
+                            found = True
+                            break
+                    if not found:
+                        map[row][column] = 0
+
+def isObstacleBot(pos):
+    try:
+        for locations in botLocations:
+            if pos[0] == locations[0] and pos[1] == locations[1]:
+                return True
+        return False
+    except:
+        return False
+
 
 def locateObstacles(currentPos):
     obst = []
@@ -177,57 +238,118 @@ def locateObstacles(currentPos):
     down = ds_down.getValue()
     left = ds_left.getValue()
     right = ds_right.getValue()
-    
-    target = supervisorNode.getField("target")
-    
+
     if right > 0:
-        obst.append({'x': currentPos[0] + 1, 'y': currentPos[1]})
+        if not currentPos[0] >= mapW - 1:
+            pos = (currentPos[0] + 1, currentPos[1])
+            obst.append({'x': pos[0], 'y': pos[1]})
+            updateMap(pos[0], pos[1], isObstacleBot(pos))
     if left > 0:
-        obst.append({'x': currentPos[0] - 1, 'y': currentPos[1]})
+        if not currentPos[0] <= 0:            
+            pos = (currentPos[0] - 1, currentPos[1])
+            obst.append({'x': pos[0], 'y': pos[1]})
+            updateMap(pos[0], pos[1], isObstacleBot(pos))
     if up > 0:
-        obst.append({'x': currentPos[0], 'y': currentPos[1] + 1})
-        target.setSFVec2f([5,4])
+        if not currentPos[1] >= mapH - 1:
+            pos = (currentPos[0], currentPos[1] + 1)
+            obst.append({'x': pos[0], 'y': pos[1]})
+            updateMap(pos[0], pos[1], isObstacleBot(pos))
     if down > 0:
-        obst.append({'x': currentPos[0], 'y': currentPos[1] - 1})
+        if not currentPos[1] <= 0:  
+            pos = (currentPos[0], currentPos[1] - 1)
+            obst.append({'x': pos[0], 'y': pos[1]})
+            updateMap(pos[0], pos[1], isObstacleBot(pos))
     
     return obst
 
+def getNextStep(botMap, target):
+    currentPos = getCurrentPos()
+    def make_step(k):
+      for i in range(len(m)):
+        for j in range(len(m[i])):
+          if m[i][j] == k:
+            if i>0 and m[i-1][j] == 0 and botMap[i-1][j] == 0:
+              m[i-1][j] = k + 1
+            if j>0 and m[i][j-1] == 0 and botMap[i][j-1] == 0:
+              m[i][j-1] = k + 1
+            if i<len(m)-1 and m[i+1][j] == 0 and botMap[i+1][j] == 0:
+              m[i+1][j] = k + 1
+            if j<len(m[i])-1 and m[i][j+1] == 0 and botMap[i][j+1] == 0:
+               m[i][j+1] = k + 1
 
+    m = []
+    for i in range(len(botMap)):
+        m.append([])
+        for j in range(len(botMap[i])):
+            m[-1].append(0)
+    i,j = (currentPos[0],currentPos[1])
+    m[i][j] = 1
+  
+    k = 0
+    while m[target[0]][target[1]] == 0:
+        k += 1
+        make_step(k)
+  
+  
+    i, j = target
+    k = m[i][j]
+    the_path = [(i,j)]
+    while k > 1:
+        if i > 0 and m[i - 1][j] == k-1:
+            i, j = i-1, j
+            the_path.append((i, j))
+            k-=1
+        elif j > 0 and m[i][j - 1] == k-1:
+            i, j = i, j-1
+            the_path.append((i, j))
+            k-=1
+        elif i < len(m) - 1 and m[i + 1][j] == k-1:
+            i, j = i+1, j
+            the_path.append((i, j))
+            k-=1
+        elif j < len(m[i]) - 1 and m[i][j + 1] == k-1:
+            i, j = i, j+1
+            the_path.append((i, j))
+            k -= 1
+    return (the_path[len(the_path)-2])
+
+def printMap():
+    def rotate(array):
+        R, C=len(array), len(array[0])
+        newArr = [[None] * R for _ in range(C)]
+        for c in range(C):
+            for r in range(R-1, -1, -1):
+                newArr[C-c-1][r] = array[r][c]
+        return newArr
+        
+    transposedMap = rotate(map)
+    for row in transposedMap:
+        print(row)
+    print(' ')
+                
+    
 while robot.step(duration) != -1:
+    currentPos = getCurrentPos()
+    detectedObstacles = locateObstacles(currentPos)
 
-# get position
-    print("map->",map)
-    pos = supervisorNode.getPosition()
-
-    posX = round (10 * pos [0]) # times  10  because  grid  size is 0.1 x 0.1 m
-    posY = round (10 * pos [1])
-    currentPosition = (posX, posY)
-    
-
-    #server communication
     # create message and send it
-    createMsg(locationMsg, currentPosition)
-    
-    detectedObstacles = locateObstacles(currentPosition)
-    
+    createMsg(locationMsg, currentPos)  
     for i in range(len(detectedObstacles)):
         createMsg(obstacleMsg, detectedObstacles[i])
-   
-
     sendAllMsg()
 
     # receive message from the server
     messageFromServer = receiveMsg()
-
-    try:
+    try:   
         serverMessage = json.loads(messageFromServer)
         parseMsg(serverMessage)
         print(f"Received {serverMessage!r}")
     except ValueError:
         pass
-
-    print(obstacles)
     
-    moveToDest(pos)
-
-    time.sleep(2)
+    # move bot one step
+    moveToDest(currentPos)
+    
+    printMap()
+    
+    time.sleep(0.1)

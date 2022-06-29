@@ -2,7 +2,7 @@
 WorldInfo {
 }
 Viewpoint {
-  orientation 0.3793484448014867 -0.3720926028890408 -0.8471374459330386 4.528226584879295
+  orientation 0.37809763701979887 -0.3764710879031619 -0.8457610163947344 4.541391216358901
   position 0.3915120964363471 -0.8443910612286554 1.524331756016345
 }
 TexturedBackground {
@@ -87,5 +87,7 @@ Solid {
   boundingObject USE BOX_SHAPE
 }
 butterbot {
-  target 5 4
+  name "1"
+  translation 0.9 0.9 0.05
+  target 0 4
 }
