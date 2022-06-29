@@ -1,10 +1,15 @@
 <script >
     let ws = new WebSocket("ws://95.217.181.53:8000");
     let obstacleMap = [...Array(10)].map(x=>Array(10).fill(0));
+    let unitList = [{"x":0,"y":10},
+                    {"x":0,"y":0},
+                    {"x":10,"y":10},
+                    {"x":10,"y":0}]             
 
     function get_data() {
         ws.send("request_messages");
     }
+
 
     ws.onmessage = function(message) {
         try {
@@ -12,7 +17,7 @@
             // console.log(message.data)
             // console.log("=============");
             messageArray = message.data.split("|");
-            console.log("the message array->", messageArray)
+            ///console.log("the message array->", messageArray)
             messageArray.forEach(jsonString => {
                 
                 messageObject = JSON.parse(jsonString);
@@ -28,11 +33,19 @@
                         if(!(x < 0 || y < 0))
                         {
                             obstacleMap[y][x] = 1;
-                            drawObstakcle(y,x)
+                            drawObstakcle(x,y)
                         }
                         
-                        console.log(obstacleMap);
+                        //console.log(obstacleMap);
                     });
+                }
+                if(messageObject.messageId === 5) {
+                    let list = messageObject.list;
+                    drawUnit1(list[0].x, list[0].y);
+                    drawUnit2(list[1].x, list[1].y);
+                    drawUnit3(list[2].x, list[2].y);
+                    drawUnit4(list[3].x, list[3].y);
+                    unitList = list;
                 }    
             });
             
@@ -44,7 +57,7 @@
     setInterval(get_data, 1000);
 </script>
 
-<canvas  id="theCanvas" width="240" height="240" style="background-color: darkblue">
+<canvas  id="theCanvas" width="220" height="220" style="background-color: darkblue">
 </canvas>
 
 <script>
@@ -67,31 +80,32 @@
         context.drawBlock(x, y)
     }
 
-    function  drawUnit1() {
-        //context.clear();
-        context.fillStyle = "red";
-        context.drawBlock(0, 0); 
-    }
-    function  drawUnit2() {
-        //context.clear();
+    function  drawUnit1(x, y) {
+        context.clearBlock(unitList[0].x,unitList[0].y);
         context.fillStyle = "#ADD8E6";
-        context.drawBlock(11, 11); 
+        context.drawBlock(x,y); 
     }
-    function  drawUnit3() {
-        //context.clear();
-        context.fillStyle = "yellow";
-        context.drawBlock(0, 11); 
+    function  drawUnit2(x, y) {
+        context.clearBlock(unitList[1].x,unitList[1].y);
+        context.fillStyle = "red";
+        context.drawBlock(x,y); 
     }
-    function  drawUnit4() {
-        //context.clear();
+    function  drawUnit3(x, y) {
+        context.clearBlock(unitList[2].x,unitList[2].y);
         context.fillStyle = "green";
-        context.drawBlock(11, 0); 
+        context.drawBlock(x,y); 
+    }
+    function  drawUnit4(x, y) {
+        context.clearBlock(unitList[3].x,unitList[3].y);
+        context.fillStyle = "yellow";
+        context.drawBlock(x,y); 
     }
 
-drawUnit1();
-drawUnit2();
-drawUnit3();
-drawUnit4();
+    drawUnit1(unitList[0].x, unitList[0].y);
+    drawUnit2(unitList[1].x, unitList[1].y);
+    drawUnit3(unitList[2].x, unitList[2].y);
+    drawUnit4(unitList[3].x, unitList[3].y);   
+
 </script>
 <div id="myDiv" style="background-color: darkgray" ></div >
 <input placeholder="bot_id" type="text" id="bot_id" size="6">
@@ -114,7 +128,7 @@ drawUnit4();
         +'"x_dest": ' + x_dest + 
         ',"y_dest": ' + y_dest + '}';
 
-        console.log(stringForJson);
+        //console.log(stringForJson);
 
         ws.send(stringForJson);
     }
